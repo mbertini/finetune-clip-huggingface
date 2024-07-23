@@ -54,6 +54,7 @@ from transformers import (
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
+from transformers import Trainer
 
 
 logger = logging.getLogger(__name__)
@@ -220,6 +221,16 @@ def collate_fn(examples):
         "attention_mask": attention_mask,
         "return_loss": True,
     }
+
+
+class ContiguousTrainer(Trainer):
+    def _save_checkpoint(self, model, trial, metrics=None):
+        # Make all parameters contiguous
+        for param in model.parameters():
+            param.data = param.data.contiguous()
+
+        # Call the original _save_checkpoint method
+        super()._save_checkpoint(model, trial, metrics)
 
 
 def main():
@@ -490,7 +501,15 @@ def main():
         test_dataset.set_transform(transform_images)
 
     # 8. Initalize our trainer
-    trainer = Trainer(
+    # trainer = Trainer(
+    #     model=model,
+    #     args=training_args,
+    #     train_dataset=train_dataset if training_args.do_train else None,
+    #     eval_dataset=eval_dataset if training_args.do_eval else None,
+    #     data_collator=collate_fn,
+    # )
+    # Use ContiguousTrainer instead of Trainer
+    trainer = ContiguousTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset if training_args.do_train else None,
