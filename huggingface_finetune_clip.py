@@ -233,6 +233,20 @@ class ContiguousTrainer(Trainer):
         super()._save_checkpoint(model, trial, metrics)
 
 
+class TorchSaveTrainer(Trainer):
+    def _save(self, output_dir: Optional[str] = None, state_dict=None):
+        output_dir = output_dir if output_dir is not None else self.args.output_dir
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Use torch.save instead of safetensors
+        if state_dict is None:
+            state_dict = self.model.state_dict()
+        torch.save(state_dict, os.path.join(output_dir, "pytorch_model.bin"))
+
+        # Save the config
+        self.model.config.save_pretrained(output_dir)
+
+
 def main():
     # 1. Parse input arguments
     # See all possible arguments in src/transformers/training_args.py
@@ -509,7 +523,15 @@ def main():
     #     data_collator=collate_fn,
     # )
     # Use ContiguousTrainer instead of Trainer
-    trainer = ContiguousTrainer(
+    # trainer = ContiguousTrainer(
+    #     model=model,
+    #     args=training_args,
+    #     train_dataset=train_dataset if training_args.do_train else None,
+    #     eval_dataset=eval_dataset if training_args.do_eval else None,
+    #     data_collator=collate_fn,
+    # )
+    # Use TorchSaveTrainer instead of Trainer
+    trainer = TorchSaveTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset if training_args.do_train else None,
